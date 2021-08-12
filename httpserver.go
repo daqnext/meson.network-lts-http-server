@@ -5,18 +5,22 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
+	"github.com/labstack/gommon/log"
 )
 
 type Context = echo.Context
 type HttpServer struct {
 	echo.Echo
 	PauseMoment int64
+	filehandler *os.File
 }
 
-func (hs *HttpServer) SetPauseMoment(pm int64) {
-	hs.PauseMoment = pm
+func (hs *HttpServer) SetPauseSeconds(secs int64) {
+	hs.PauseMoment = time.Now().Unix() + secs
 }
 
 func (hs *HttpServer) GetPauseMoment() int64 {
@@ -90,6 +94,41 @@ func (e *HttpServer) static_with_pause(hs *HttpServer, prefix, root string, get 
 }
 
 func New() (hs *HttpServer) {
-	hs = &HttpServer{*echo.New(), 0}
+	hs = &HttpServer{*echo.New(), 0, nil}
+	hs.Use(middleware.Logger())
 	return hs
+}
+
+func (hs *HttpServer) SetLogFile(path string) error {
+	fh, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
+	hs.filehandler = fh
+	hs.Logger.SetOutput(hs.filehandler)
+	return err
+}
+
+func (hs *HttpServer) CloseServer() {
+	hs.Close()
+	if hs.filehandler != nil {
+		hs.filehandler.Close()
+	}
+}
+
+func (hs *HttpServer) SetLogLevel_DEBUG() {
+	hs.Logger.SetLevel(log.DEBUG)
+}
+
+func (hs *HttpServer) SetLogLevel_INFO() {
+	hs.Logger.SetLevel(log.INFO)
+}
+
+func (hs *HttpServer) SetLogLevel_WARN() {
+	hs.Logger.SetLevel(log.WARN)
+}
+
+func (hs *HttpServer) SetLogLevel_ERROR() {
+	hs.Logger.SetLevel(log.ERROR)
+}
+
+func (hs *HttpServer) SetLogLevel_OFF() {
+	hs.Logger.SetLevel(log.OFF)
 }
