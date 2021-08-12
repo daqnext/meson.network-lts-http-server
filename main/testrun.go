@@ -1,5 +1,10 @@
 package main
 
-import "github.com/daqnext/meson.network-lts-http-server"
+import httpserver "github.com/daqnext/meson.network-lts-http-server"
 
-HttpServer.N
+func main() {
+	hs := httpserver.New()
+	hs.StaticWithPause(hs, "/", "assets")
+	hs.Logger.Fatal(hs.Start(":80"))
+
+}

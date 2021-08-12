@@ -1,4 +1,4 @@
-package MSHttpServer
+package httpserver
 
 import (
 	"net/http"
@@ -12,16 +12,48 @@ import (
 type Context = echo.Context
 type HttpServer struct {
 	echo.Echo
+	PauseMoment int64
 }
 
-func (e *HttpServer) StaticWithPause(prefix, root string) *echo.Route {
+func (hs *HttpServer) SetPauseMoment(pm int64) {
+	hs.PauseMoment = pm
+}
+
+func (hs *HttpServer) GetPauseMoment() int64 {
+	return hs.PauseMoment
+}
+
+func FileWithPause(hs *HttpServer, c Context, file string) (err error) {
+	f, err := os.Open(file)
+	if err != nil {
+		return echo.NotFoundHandler(c)
+	}
+	defer f.Close()
+
+	fi, _ := f.Stat()
+	if fi.IsDir() {
+		file = filepath.Join(file, "index.html")
+		f, err = os.Open(file)
+		if err != nil {
+			return echo.NotFoundHandler(c)
+		}
+		defer f.Close()
+		if fi, err = f.Stat(); err != nil {
+			return
+		}
+	}
+	ServeContent(hs, c.Response(), c.Request(), fi.Name(), fi.ModTime(), f)
+	return
+}
+
+func (e *HttpServer) StaticWithPause(hs *HttpServer, prefix, root string) *echo.Route {
 	if root == "" {
 		root = "." // For security we want to restrict to CWD.
 	}
-	return e.static_with_pause(prefix, root, e.GET)
+	return e.static_with_pause(hs, prefix, root, e.GET)
 }
 
-func (e *HttpServer) static_with_pause(prefix, root string, get func(string, echo.HandlerFunc, ...echo.MiddlewareFunc) *echo.Route) *echo.Route {
+func (e *HttpServer) static_with_pause(hs *HttpServer, prefix, root string, get func(string, echo.HandlerFunc, ...echo.MiddlewareFunc) *echo.Route) *echo.Route {
 	h := func(c Context) error {
 		p, err := url.PathUnescape(c.Param("*"))
 		if err != nil {
@@ -41,7 +73,8 @@ func (e *HttpServer) static_with_pause(prefix, root string, get func(string, ech
 			// Redirect to ends with "/"
 			return c.Redirect(http.StatusMovedPermanently, p+"/")
 		}
-		return c.File(name)
+
+		return FileWithPause(hs, c, name)
 	}
 	// Handle added routes based on trailing slash:
 	// 	/prefix  => exact route "/prefix" + any route "/prefix/*"
@@ -57,6 +90,6 @@ func (e *HttpServer) static_with_pause(prefix, root string, get func(string, ech
 }
 
 func New() (hs *HttpServer) {
-	hs = &HttpServer{*echo.New()}
+	hs = &HttpServer{*echo.New(), 0}
 	return hs
 }
