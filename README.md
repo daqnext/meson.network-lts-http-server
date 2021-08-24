@@ -29,6 +29,14 @@ func main() {
 		content.Random = rand.Intn(1000)
 		return c.JSONP(http.StatusOK, callback, &content)
 	})
+	
+	///////////////////  static file //////////////////////
+	hs.GET("/sendfiletest/:filename",func(c httpserver.Context) error{
+		name := c.Param("filename")
+		needSavedHeader:=true
+		return httpserver.FileWithPause(hs,c,"assets/"+name,needSavedHeader)
+	})
+	
 
 	///////////////////start//////////////////////////////
 	hs.Logger.Fatal(hs.Start(":80")) //stuck here

@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -27,7 +28,7 @@ func (hs *HttpServer) GetPauseMoment() int64 {
 	return hs.PauseMoment
 }
 
-func FileWithPause(hs *HttpServer, c Context, file string) (err error) {
+func FileWithPause(hs *HttpServer, c Context, file string, needSavedHeader bool) (err error) {
 	f, err := os.Open(file)
 	if err != nil {
 		return echo.NotFoundHandler(c)
@@ -46,18 +47,17 @@ func FileWithPause(hs *HttpServer, c Context, file string) (err error) {
 			return
 		}
 	}
-	ServeContent(hs, c.Response(), c.Request(), fi.Name(), fi.ModTime(), f)
+	ServeContent(hs, c.Response(), c.Request(), fi.Name(), fi.ModTime(), f, needSavedHeader)
 	return
 }
 
-func (e *HttpServer) StaticWithPause(hs *HttpServer, prefix, root string) *echo.Route {
+func (e *HttpServer) StaticWithPause(prefix, root string) *echo.Route {
 	if root == "" {
 		root = "." // For security we want to restrict to CWD.
 	}
-	return e.static_with_pause(hs, prefix, root, e.GET)
+	return e.static_with_pause(prefix, root, e.GET)
 }
-
-func (e *HttpServer) static_with_pause(hs *HttpServer, prefix, root string, get func(string, echo.HandlerFunc, ...echo.MiddlewareFunc) *echo.Route) *echo.Route {
+func (e *HttpServer) static_with_pause(prefix, root string, get func(string, echo.HandlerFunc, ...echo.MiddlewareFunc) *echo.Route) *echo.Route {
 	h := func(c Context) error {
 		p, err := url.PathUnescape(c.Param("*"))
 		if err != nil {
@@ -78,7 +78,7 @@ func (e *HttpServer) static_with_pause(hs *HttpServer, prefix, root string, get 
 			return c.Redirect(http.StatusMovedPermanently, p+"/")
 		}
 
-		return FileWithPause(hs, c, name)
+		return FileWithPause(e, c, name, true)
 	}
 	// Handle added routes based on trailing slash:
 	// 	/prefix  => exact route "/prefix" + any route "/prefix/*"
@@ -97,6 +97,11 @@ func New() (hs *HttpServer) {
 	hs = &HttpServer{*echo.New(), 0, nil}
 	hs.Use(middleware.Logger())
 	return hs
+}
+
+func (hs *HttpServer) SetLogOutput(writer io.Writer) error {
+	hs.Logger.SetOutput(writer)
+	return nil
 }
 
 func (hs *HttpServer) SetLogFile(path string) error {

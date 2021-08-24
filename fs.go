@@ -719,7 +719,7 @@ func localRedirect(w http.ResponseWriter, r *http.Request, newPath string) {
 // ServeContent uses it to handle requests using If-Match, If-None-Match, or If-Range.
 //
 // Note that *os.File implements the io.ReadSeeker interface.
-func ServeContent(hs *HttpServer, w http.ResponseWriter, req *http.Request, name string, modtime time.Time, content io.ReadSeeker) {
+func ServeContent(hs *HttpServer, w http.ResponseWriter, req *http.Request, name string, modtime time.Time, content io.ReadSeeker, needSavedHeader bool) {
 	sizeFunc := func() (int64, error) {
 		size, err := content.Seek(0, io.SeekEnd)
 		if err != nil {
@@ -733,6 +733,12 @@ func ServeContent(hs *HttpServer, w http.ResponseWriter, req *http.Request, name
 		}
 		return size, nil
 	}
+
+	if needSavedHeader {
+		//read and add header
+		//w.Header().Add()
+	}
+
 	serveContent(hs, w, req, name, modtime, sizeFunc, content)
 }
 

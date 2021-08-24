@@ -14,7 +14,7 @@ func main() {
 	hs.SetLogLevel_DEBUG()
 
 	//////////start transmiting after 10 seconds////////
-	hs.StaticWithPause(hs, "/", "assets")
+	hs.StaticWithPause("/", "assets")
 	hs.SetPauseSeconds(10)
 	///////////log related setting/////////////////////////
 	fmt.Println("log level is :", hs.Logger.Level())
@@ -34,8 +34,14 @@ func main() {
 		return c.JSONP(http.StatusOK, callback, &content)
 	})
 
+	hs.GET("/sendfiletest/:filename", func(c httpserver.Context) error {
+		name := c.Param("filename")
+		needSavedHeader := true
+		return httpserver.FileWithPause(hs, c, "assets/"+name, needSavedHeader)
+	})
+
 	///////////////////start//////////////////////////////
-	hs.Logger.Fatal(hs.Start(":80")) //stuck here
+	hs.Logger.Fatal(hs.Start(":8080")) //stuck here
 
 	//////////////////start using https server////////////
 	//hs.Logger.Fatal(hs.StartTLS(......))
